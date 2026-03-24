@@ -120,7 +120,7 @@ function ViewResult({ token }) {
                   <th>SNO</th>
                   <th>Username</th>
                   <th>Marks</th>
-                  <th>View</th>
+                  {/* <th>View</th> */}
                 </tr>
               </thead>
               <tbody>
@@ -133,9 +133,9 @@ function ViewResult({ token }) {
                         {res.marks}
                       </span>
                     </td>
-                    <td>
+                    {/* <td>
                       <button className="svec-btn svec-btn-outline" style={{ padding: '5px 12px', fontSize: '0.78rem', borderRadius: 'var(--radius-sm)' }} onClick={() => handleViewQuiz(res)}>View</button>
-                    </td>
+                    </td> */}
                   </tr>
                 ))}
               </tbody>

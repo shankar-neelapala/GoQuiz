@@ -108,7 +108,7 @@ function ViewLabResults({ token }) {
                   <th>SNO</th>
                   <th>Username</th>
                   <th>Marks</th>
-                  <th>Code</th>
+                  {/* <th>Code</th> */}
                   <th>Status</th>
                 </tr>
               </thead>
@@ -122,9 +122,9 @@ function ViewLabResults({ token }) {
                         {res.marks}
                       </span>
                     </td>
-                    <td>
+                    {/* <td>
                       <button className="svec-btn svec-btn-outline" style={{ padding: '5px 12px', fontSize: '0.78rem', borderRadius: 'var(--radius-sm)' }} onClick={() => handleViewCode()}>View Code</button>
-                    </td>
+                    </td> */}
                     <td>{res.status}</td>
                   </tr>
                 ))}

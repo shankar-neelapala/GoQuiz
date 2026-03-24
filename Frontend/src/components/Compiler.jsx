@@ -63,6 +63,13 @@ function Compiler() {
   const doSubmitRef = React.useRef(null);
   const enteredFSRef = React.useRef(false);
 
+  // Preview/confirm submit state
+  const [previewState, setPreviewState] = React.useState('idle'); // idle | running | done | error
+  const [previewResults, setPreviewResults] = React.useState(null);
+  const [showConfirmModal, setShowConfirmModal] = React.useState(false);
+  const [confirmingSubmit, setConfirmingSubmit] = React.useState(false);
+  const pendingPayloadRef = React.useRef(null);
+
 
   function htmlToText(html) {
     if (!html) return '';
@@ -216,13 +223,12 @@ function Compiler() {
     }
   };
 
+  // Step 1: Preview — runs all test cases, shows results, does NOT store
   const handleSubmit = async () => {
     if (!selectedQuestion || !Object.keys(selectedQuestion).length) {
       toast.warning('No Question Selected', 'Please select a question before submitting.');
       return;
     }
-
-    setSubmitState('submitting'); setRunState('idle'); setCompilationOutput(''); setActiveTab('output');
 
     const payload = {
       questionId: selectedQuestion.id || selectedQuestion.question_id,
@@ -240,16 +246,77 @@ function Compiler() {
       question_title: selectedQuestion.question_title || selectedQuestion.title || '',
     };
 
+    // Store payload so confirm step can use it
+    pendingPayloadRef.current = payload;
+
+    setPreviewState('running');
+    setPreviewResults(null);
+    setShowConfirmModal(true);
+
     try {
-      // Step 1: Submit code — triggers execution + stores exam data via SubmitConsumer
+      // Call /preview-submit — runs against all test cases but does NOT store in Result
+      const previewRes = await axios.post(`http://${import.meta.env.VITE_HOST}:8081/preview-submit`, {
+        questionId: payload.questionId,
+        language: payload.language,
+        source_code: payload.source_code,
+        stdin: payload.stdin,
+        expectedoutput: payload.expectedoutput,
+      }, { headers: { 'Content-Type': 'application/json' } });
+
+      const previewId = previewRes.data.submissionId || previewRes.data.id;
+      if (!previewId) throw new Error('No submissionId returned from /preview-submit');
+
+      // Poll for preview result
+      const timeoutMs = 30000;
+      const pollInterval = 1000;
+      const start = Date.now();
+      let result = null;
+
+      while (Date.now() - start < timeoutMs) {
+        try {
+          const res = await axios.get(`http://${import.meta.env.VITE_HOST}:8081/preview-result/${encodeURIComponent(previewId)}`);
+          if (res.data && res.data.status && res.data.status.toUpperCase() === 'DONE') {
+            result = res.data;
+            break;
+          }
+        } catch (e) { /* keep polling */ }
+        await new Promise((r) => setTimeout(r, pollInterval));
+      }
+
+      if (!result) throw new Error('Timed out waiting for preview result');
+
+      let parsedResults = null;
+      if (result.resultJson && typeof result.resultJson === 'string') {
+        try { parsedResults = JSON.parse(result.resultJson); } catch (e) { parsedResults = null; }
+      } else {
+        parsedResults = result.resultJson;
+      }
+
+      setPreviewResults(parsedResults);
+      setPreviewState('done');
+
+    } catch (err) {
+      setPreviewState('error');
+      setPreviewResults([{ error: err.message }]);
+    }
+  };
+
+  // Step 2: Confirm — actually stores the submission
+  const handleConfirmSubmit = async () => {
+    const payload = pendingPayloadRef.current;
+    if (!payload) return;
+
+    setConfirmingSubmit(true);
+
+    try {
       const submitRes = await axios.post(`http://${import.meta.env.VITE_HOST}:8081/submit-code`, payload, {
         headers: { 'Content-Type': 'application/json' }
       });
 
-      const submissionId = submitRes.data.submissionId || submitRes.data.id || submitRes.data.submissionID;
+      const submissionId = submitRes.data.submissionId || submitRes.data.id;
       if (!submissionId) throw new Error('No submissionId returned from /submit-code');
 
-      // Step 2: Poll for execution result
+      // Poll until stored/done
       const timeoutMs = 30000;
       const pollInterval = 1000;
       const start = Date.now();
@@ -258,61 +325,31 @@ function Compiler() {
       while (Date.now() - start < timeoutMs) {
         try {
           const res = await axios.get(`http://${import.meta.env.VITE_HOST}:8081/submit-result/${encodeURIComponent(submissionId)}`);
-          const data = res.data;
-          if (data && data.status && data.status.toUpperCase() === 'DONE') {
-            result = data;
+          if (res.data && res.data.status && res.data.status.toUpperCase() === 'DONE') {
+            result = res.data;
             break;
           }
         } catch (e) { /* keep polling */ }
         await new Promise((r) => setTimeout(r, pollInterval));
       }
 
-      if (!result) throw new Error('Timed out waiting for submit result');
-
-      // Step 3: Show output to student
-      let parsedResultJson = null;
-      if (result.resultJson && typeof result.resultJson === 'string') {
-        try { parsedResultJson = JSON.parse(result.resultJson); } catch (e) { parsedResultJson = null; }
-      } else {
-        parsedResultJson = result.resultJson;
-      }
-
-      let outText = '';
-      if (Array.isArray(parsedResultJson)) {
-        // Test-case results from SubmitConsumer
-        const total = parsedResultJson.length;
-        const passed = parsedResultJson.filter(tc => tc.passed).length;
-        outText = `Result: ${passed}/${total} test cases passed\n\n`;
-        parsedResultJson.forEach(tc => {
-          outText += `Test Case ${tc.testcase}: ${tc.passed ? '✓ Passed' : '✗ Failed'}\n`;
-          outText += `  Input:    ${tc.input}\n`;
-          outText += `  Expected: ${tc.expected}\n`;
-          outText += `  Output:   ${tc.output}\n\n`;
-        });
-      } else if (parsedResultJson && parsedResultJson.stdout) {
-        outText = parsedResultJson.stdout;
-      } else if (result.stdout) {
-        outText = result.stdout;
-      } else {
-        outText = JSON.stringify(result, null, 2);
-      }
-
-      setCompilationOutput(outText);
+      setConfirmingSubmit(false);
+      setShowConfirmModal(false);
       setSubmitState('success');
 
     } catch (err) {
-      console.error(err);
-      let errorMessage = 'Submit failed: ';
-      if (err.response) {
-        errorMessage += `Server responded with ${err.response.status}: ${JSON.stringify(err.response.data)}`;
-      } else if (err.request) {
-        errorMessage += 'No response from server.';
-      } else {
-        errorMessage += err.message;
-      }
-      setCompilationOutput(errorMessage);
+      setConfirmingSubmit(false);
       setSubmitState('error');
+      setShowConfirmModal(false);
+      setCompilationOutput('Submit failed: ' + err.message);
     }
+  };
+
+  const handleCancelSubmit = () => {
+    setShowConfirmModal(false);
+    setPreviewState('idle');
+    setPreviewResults(null);
+    pendingPayloadRef.current = null;
   };
 
   useEffect(() => { doSubmitRef.current = handleSubmit; });
@@ -449,7 +486,6 @@ function Compiler() {
     );
 
     return (
-      
       <div>
         {}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '12px' }}>
@@ -540,11 +576,7 @@ function Compiler() {
   };
 
   return (
-    username ==  null ?
-    (<div className="svec-error-state">
-        <div className="svec-error-box">ERROR: YOU ARE NOT AN AUTHORIZED PERSON.</div>
-      </div>) :
-    (<div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', fontFamily: 'var(--font)', background: '#f8fafc', overflow: 'hidden', userSelect: 'none', WebkitUserSelect: 'none' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', fontFamily: 'var(--font)', background: '#f8fafc', overflow: 'hidden', userSelect: 'none', WebkitUserSelect: 'none' }}>
 
       {}
       {secWarning && (
@@ -751,6 +783,98 @@ function Compiler() {
               style={{ background: '#10b981', color: '#fff', border: 'none', padding: '10px 28px', justifyContent: 'center' }}>
               Continue
             </button>
+          </div>
+        </div>
+      )}
+
+
+      {/* ── Preview / Confirm Submit Modal ── */}
+      {showConfirmModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99998, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)' }}>
+          <div style={{ background: '#fff', borderRadius: '18px', width: '90%', maxWidth: '560px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.25)', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+
+            {/* Header */}
+            <div style={{ padding: '22px 28px 16px', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', marginBottom: '4px' }}>
+                {previewState === 'running' ? '⏳ Running against test cases...' : previewState === 'error' ? '⚠ Preview failed' : '📋 Test Case Results'}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                {previewState === 'done'
+                  ? `${Array.isArray(previewResults) ? previewResults.filter(r => r.passed).length : 0} / ${Array.isArray(previewResults) ? previewResults.length : 0} test cases passed — review before submitting`
+                  : previewState === 'running'
+                  ? 'Please wait while your code is evaluated...'
+                  : 'Something went wrong during preview'}
+              </div>
+            </div>
+
+            {/* Body — test case results */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 28px' }}>
+              {previewState === 'running' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--accent)', fontSize: '0.88rem', fontWeight: 600 }}>
+                    <span className="spinner" /> Executing your code against all test cases...
+                  </div>
+                  {[70, 50, 80, 45].map((w, i) => (
+                    <div key={i} className="skeleton-line" style={{ height: 10, width: `${w}%`, animationDelay: `${i * 0.07}s` }} />
+                  ))}
+                </div>
+              )}
+
+              {previewState === 'done' && Array.isArray(previewResults) && previewResults.map((tc, i) => (
+                <div key={i} style={{
+                  marginBottom: '12px', borderRadius: '10px', overflow: 'hidden',
+                  border: `1px solid ${tc.passed ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`,
+                  background: tc.passed ? 'rgba(16,185,129,0.03)' : 'rgba(239,68,68,0.03)',
+                }}>
+                  <div style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: `1px solid ${tc.passed ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'}`, background: tc.passed ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)' }}>
+                    <span style={{ fontSize: '0.9rem' }}>{tc.passed ? '✅' : '❌'}</span>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: tc.passed ? '#059669' : '#dc2626', letterSpacing: '0.04em' }}>
+                      Test Case {tc.testcase} — {tc.passed ? 'PASSED' : 'FAILED'}
+                    </span>
+                  </div>
+                  <div style={{ padding: '10px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div>
+                      <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Input</div>
+                      <pre style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: '#334155', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{String(tc.input ?? '')}</pre>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Expected</div>
+                      <pre style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: '#059669', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{String(tc.expected ?? '')}</pre>
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Your Output</div>
+                      <pre style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: tc.passed ? '#059669' : '#dc2626', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{String(tc.output ?? '')}</pre>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {previewState === 'error' && (
+                <div style={{ padding: '16px', background: '#fef2f2', borderRadius: '10px', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.85rem' }}>
+                  {Array.isArray(previewResults) && previewResults[0]?.error ? previewResults[0].error : 'Preview execution failed. You can still submit your code.'}
+                </div>
+              )}
+            </div>
+
+            {/* Footer — action buttons */}
+            <div style={{ padding: '16px 28px', borderTop: '1px solid #f1f5f9', flexShrink: 0, display: 'flex', gap: '12px', justifyContent: 'flex-end', background: '#fafafa' }}>
+              <button
+                onClick={handleCancelSubmit}
+                disabled={confirmingSubmit}
+                style={{ padding: '10px 22px', borderRadius: '10px', border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontFamily: 'var(--font)', fontSize: '0.85rem', fontWeight: 700, cursor: confirmingSubmit ? 'not-allowed' : 'pointer', transition: 'all 0.15s', opacity: confirmingSubmit ? 0.5 : 1 }}
+                onMouseEnter={e => { if (!confirmingSubmit) { e.target.style.borderColor = '#94a3b8'; e.target.style.color = '#334155'; }}}
+                onMouseLeave={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.color = '#64748b'; }}>
+                ✕ Cancel
+              </button>
+              <button
+                onClick={handleConfirmSubmit}
+                disabled={confirmingSubmit || previewState === 'running'}
+                style={{ padding: '10px 26px', borderRadius: '10px', border: 'none', background: confirmingSubmit || previewState === 'running' ? 'rgba(16,185,129,0.5)' : '#10b981', color: '#fff', fontFamily: 'var(--font)', fontSize: '0.85rem', fontWeight: 700, cursor: confirmingSubmit || previewState === 'running' ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.15s' }}
+                onMouseEnter={e => { if (!confirmingSubmit && previewState !== 'running') e.target.style.background = '#059669'; }}
+                onMouseLeave={e => { if (!confirmingSubmit && previewState !== 'running') e.target.style.background = '#10b981'; }}>
+                {confirmingSubmit ? <><span className="spinner" /> Submitting...</> : '✓ Confirm Submit'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -963,7 +1087,7 @@ function Compiler() {
           </div>
         </div>
       </div>
-    </div>)
+    </div>
   );
 }
 
