@@ -121,7 +121,7 @@ function Compiler() {
         expectedoutput: ''
       };
 
-      const submitRes = await axios.post(`http://${import.meta.env.VITE_HOST}:8081/submit`, payload, {
+      const submitRes = await axios.post(`http://${import.meta.env.VITE_HOST}:8081/run`, payload, {
         headers: { 'Content-Type': 'application/json' }
       });
 
@@ -129,7 +129,7 @@ function Compiler() {
       const submissionId = submitData.submissionId || submitData.id || submitData.submissionID;
 
       if (!submissionId) {
-        throw new Error('No submissionId returned from /submit');
+        throw new Error('No submissionId returned from /run');
       }
 
       setRunState('polling');
@@ -217,46 +217,98 @@ function Compiler() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedQuestion) {
+    if (!selectedQuestion || !Object.keys(selectedQuestion).length) {
       toast.warning('No Question Selected', 'Please select a question before submitting.');
       return;
     }
 
-    setSubmitState('submitting'); setRunState('idle');
+    setSubmitState('submitting'); setRunState('idle'); setCompilationOutput(''); setActiveTab('output');
 
-    const body = {
-      id: selectedQuestion.id || selectedQuestion.question_id,
-      batch: batch,
-      branch: branch,
-      semester: semester,
-      coursecode: coursecode,
-      examType: examtype,
-      section: section,
-      username: username,
-      question_title: selectedQuestion.question_title,
+    const payload = {
+      questionId: selectedQuestion.id || selectedQuestion.question_id,
+      language,
       source_code: code,
-      marks: 0,
+      stdin: stdinValue || '',
+      expectedoutput: '',
+      username: username || '',
+      batch: batch || '',
+      branch: branch || '',
+      semester: semester || '',
+      coursecode: coursecode || '',
+      examType: examtype || '',
+      section: section || '',
+      question_title: selectedQuestion.question_title || selectedQuestion.title || '',
     };
 
     try {
-      const response = await axios.post(`http://${import.meta.env.VITE_HOST}:8081/student/submit`, body, {
+      // Step 1: Submit code — triggers execution + stores exam data via SubmitConsumer
+      const submitRes = await axios.post(`http://${import.meta.env.VITE_HOST}:8081/submit-code`, payload, {
         headers: { 'Content-Type': 'application/json' }
       });
 
-      if (response.status === 200) {
-        setSubmitState('success');
-        const details = location.state;
+      const submissionId = submitRes.data.submissionId || submitRes.data.id || submitRes.data.submissionID;
+      if (!submissionId) throw new Error('No submissionId returned from /submit-code');
 
+      // Step 2: Poll for execution result
+      const timeoutMs = 30000;
+      const pollInterval = 1000;
+      const start = Date.now();
+      let result = null;
+
+      while (Date.now() - start < timeoutMs) {
+        try {
+          const res = await axios.get(`http://${import.meta.env.VITE_HOST}:8081/submit-result/${encodeURIComponent(submissionId)}`);
+          const data = res.data;
+          if (data && data.status && data.status.toUpperCase() === 'DONE') {
+            result = data;
+            break;
+          }
+        } catch (e) { /* keep polling */ }
+        await new Promise((r) => setTimeout(r, pollInterval));
       }
+
+      if (!result) throw new Error('Timed out waiting for submit result');
+
+      // Step 3: Show output to student
+      let parsedResultJson = null;
+      if (result.resultJson && typeof result.resultJson === 'string') {
+        try { parsedResultJson = JSON.parse(result.resultJson); } catch (e) { parsedResultJson = null; }
+      } else {
+        parsedResultJson = result.resultJson;
+      }
+
+      let outText = '';
+      if (Array.isArray(parsedResultJson)) {
+        // Test-case results from SubmitConsumer
+        const total = parsedResultJson.length;
+        const passed = parsedResultJson.filter(tc => tc.passed).length;
+        outText = `Result: ${passed}/${total} test cases passed\n\n`;
+        parsedResultJson.forEach(tc => {
+          outText += `Test Case ${tc.testcase}: ${tc.passed ? '✓ Passed' : '✗ Failed'}\n`;
+          outText += `  Input:    ${tc.input}\n`;
+          outText += `  Expected: ${tc.expected}\n`;
+          outText += `  Output:   ${tc.output}\n\n`;
+        });
+      } else if (parsedResultJson && parsedResultJson.stdout) {
+        outText = parsedResultJson.stdout;
+      } else if (result.stdout) {
+        outText = result.stdout;
+      } else {
+        outText = JSON.stringify(result, null, 2);
+      }
+
+      setCompilationOutput(outText);
+      setSubmitState('success');
+
     } catch (err) {
       console.error(err);
-      let errorMessage = 'Failed to submit code.';
+      let errorMessage = 'Submit failed: ';
       if (err.response) {
-        errorMessage += ` Server responded with ${err.response.status}: ${err.response.data}`;
+        errorMessage += `Server responded with ${err.response.status}: ${JSON.stringify(err.response.data)}`;
       } else if (err.request) {
-        errorMessage += ' No response from server.';
+        errorMessage += 'No response from server.';
       } else {
-        errorMessage += ` ${err.message}`;
+        errorMessage += err.message;
       }
       setCompilationOutput(errorMessage);
       setSubmitState('error');

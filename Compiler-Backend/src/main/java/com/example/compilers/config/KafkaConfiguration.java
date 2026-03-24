@@ -27,7 +27,12 @@ public class KafkaConfiguration {
     }
 
     @Bean
-    public NewTopic submissionsTopic() {
-        return new NewTopic("submissions", 1, (short) 1);
+    public NewTopic runSubmissionsTopic() {
+        return new NewTopic("run-submissions", 1, (short) 1);
+    }
+
+    @Bean
+    public NewTopic submitSubmissionsTopic() {
+        return new NewTopic("submit-submissions", 1, (short) 1);
     }
 }

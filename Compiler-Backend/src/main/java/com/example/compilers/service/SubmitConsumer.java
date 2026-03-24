@@ -26,25 +26,25 @@ public class SubmitConsumer {
     private final String JUDGE0_URL = "http://localhost:2358/submissions?base64_encoded=true&wait=true";
 
     public SubmitConsumer(SubmissionRepository submissionRepo,
-                              QuestionRepository questionRepo,
-                              ResultRepository resultRepo) {
+                          QuestionRepository questionRepo,
+                          ResultRepository resultRepo) {
         this.submissionRepo = submissionRepo;
         this.questionRepo = questionRepo;
         this.resultRepo = resultRepo;
     }
 
-    @KafkaListener(topics = "submissions", groupId = "compiler-group")
+    @KafkaListener(topics = "submit-submissions", groupId = "submit-group")
     public void consume(String submissionId) {
         submissionRepo.findById(submissionId).ifPresent(submission -> {
             try {
                 submission.setStatus("RUNNING");
                 submissionRepo.save(submission);
 
-                // Fetch question
-                CodingQuestion question = questionRepo.findById(submission.getId()).orElse(null);
+                // Fetch question by questionId stored in submission
+                CodingQuestion question = questionRepo.findById(submission.getQuestionId()).orElse(null);
                 if (question == null) {
                     submission.setStatus("ERROR");
-                    submission.setResultJson("Error: Question not found");
+                    submission.setResultJson("Error: Question not found for id: " + submission.getQuestionId());
                     submissionRepo.save(submission);
                     return;
                 }
@@ -53,7 +53,7 @@ public class SubmitConsumer {
                 List<String> testCases = question.getTestCases();
                 List<String> expectedOutputs = question.getTestCasesOutput();
 
-                int total = testCases.size();
+                int total = testCases != null ? testCases.size() : 0;
                 int correct = 0;
                 List<Map<String, Object>> results = new ArrayList<>();
 
@@ -61,7 +61,6 @@ public class SubmitConsumer {
                     String input = testCases.get(i);
                     String expected = expectedOutputs.get(i);
 
-                    // Encode for Judge0
                     String encodedSource = Base64.getEncoder().encodeToString(submission.getSourceCode().getBytes(StandardCharsets.UTF_8));
                     String encodedStdin = Base64.getEncoder().encodeToString(input.getBytes(StandardCharsets.UTF_8));
                     String encodedExpectedOutput = Base64.getEncoder().encodeToString(expected.getBytes(StandardCharsets.UTF_8));
@@ -95,24 +94,26 @@ public class SubmitConsumer {
                     ));
                 }
 
-                double marks = question.getMarks() * ((double) correct / total);
+                double marks = total > 0 ? question.getMarks() * ((double) correct / total) : 0;
 
-                // Update submission
+                // Update submission status
                 submission.setResultJson(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(results));
                 submission.setStatus("DONE");
                 submissionRepo.save(submission);
 
-                // Save into coding_results
+                // Save exam result - student data comes from the submission itself
                 Result result = new Result();
-                result.setBatch(question.getBatch());
-                result.setBranch(question.getBranch());
-                result.setSemester(question.getSemester());
-                result.setCoursecode(question.getCoursecode());
-                result.setExamType(question.getExam_type());
-                result.setSection(""); // fill dynamically if you store section in Submission or user info
-                result.setUsername(submission.getId()); // ideally should come from user context / token
-                result.setQuestion_title(question.getQuestion_title());
+                result.setBatch(submission.getBatch());
+                result.setBranch(submission.getBranch());
+                result.setSemester(submission.getSemester());
+                result.setCoursecode(submission.getCoursecode());
+                result.setExamType(submission.getExamType());
+                result.setSection(submission.getSection());
+                result.setUsername(submission.getUsername());
+                result.setQuestion_title(submission.getQuestionTitle());
+                result.setSource_code(submission.getSourceCode());
                 result.setMarks(marks);
+                result.setStatus(correct == total ? "ACCEPTED" : "PARTIAL");
 
                 resultRepo.save(result);
 
@@ -139,12 +140,10 @@ public class SubmitConsumer {
         try {
             JsonNode root = mapper.readTree(json);
             if (!(root instanceof ObjectNode obj)) return json;
-
             decodeField(obj, "stdout");
             decodeField(obj, "stderr");
             decodeField(obj, "compile_output");
             decodeField(obj, "message");
-
             return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);
         } catch (Exception e) {
             return "Error decoding Judge0 response: " + e.getMessage() + "\nRaw: " + json;

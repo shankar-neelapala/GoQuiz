@@ -10,23 +10,22 @@ import java.util.Optional;
 
 @CrossOrigin("*")
 @RestController
-//@RequestMapping("/compiler")
-public class SubmissionController {
+public class RunController {
     private final SubmissionRepository repo;
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private final String TOPIC = "submissions";
+    private final String TOPIC = "run-submissions";
 
-    public SubmissionController(SubmissionRepository repo, KafkaTemplate<String, String> kafkaTemplate) {
-        this.repo = repo; this.kafkaTemplate = kafkaTemplate;
+    public RunController(SubmissionRepository repo, KafkaTemplate<String, String> kafkaTemplate) {
+        this.repo = repo;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
-    record SubmitRequest(String questionId,String language, String source_code, String stdin, String expectedoutput) {}
+    record RunRequest(String language, String source_code, String stdin, String expectedoutput) {}
 
-    @PostMapping("/submit")
-    public ResponseEntity<?> submit(@RequestBody SubmitRequest req) {
-        Submission s = new Submission(req.language, req.source_code, req.stdin, req.expectedoutput);
+    @PostMapping("/run")
+    public ResponseEntity<?> run(@RequestBody RunRequest req) {
+        Submission s = new Submission(req.language(), req.source_code(), req.stdin(), req.expectedoutput());
         s = repo.save(s);
-        // publish submission id to Kafka
         kafkaTemplate.send(TOPIC, s.getId());
         return ResponseEntity.ok().body(java.util.Map.of("submissionId", s.getId()));
     }
