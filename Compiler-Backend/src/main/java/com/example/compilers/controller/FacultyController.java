@@ -1,11 +1,12 @@
 package com.example.compilers.controller;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -14,7 +15,10 @@ import com.example.compilers.model.LabSchedule;
 import com.example.compilers.model.Result;
 import com.example.compilers.service.FacultyService;
 
-@CrossOrigin("*")
+@CrossOrigin(
+	    origins = "http://localhost:3000",
+	    allowCredentials = "true"
+	)
 @RestController
 //@RequestMapping("/compiler")
 public class FacultyController {
@@ -35,8 +39,8 @@ public class FacultyController {
 	
 	
 	@GetMapping("/emp/view-coding-results")
-	public Result getAll(@RequestParam("branch") String branch) {
-		return facultyService.getAll(branch);
+	public List<Result> getAll(@RequestParam("batch") String batch,@RequestParam("branch") String branch,@RequestParam("coursecode") String code,@RequestParam("exam_type") String type,@RequestParam("semester") String semester,@RequestParam("section") String section) {
+		return facultyService.getAll(batch, branch, code, type, semester, section);
 	}
 
 }

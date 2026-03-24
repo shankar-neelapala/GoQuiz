@@ -5,9 +5,8 @@ import FormComponent from './Form';
 import * as XLSX from 'xlsx-js-style';
 import { saveAs } from 'file-saver';
 import { useToast } from './Toast';
-import { useNavigate } from 'react-router-dom';
 
-function ViewResult({ token }) {
+function ViewLabResults({ token }) {
   const toast = useToast();
   const [regulation, setRegulation] = useState();
   const [batch, setBatch] = useState(-1);
@@ -23,20 +22,10 @@ function ViewResult({ token }) {
   const [displayres, setDisplayres] = useState(true);
   const [display, setDisplay] = useState(0);
   const [subjectText, setSubjectText] = useState();
-  const navigate = useNavigate();
 
-  const handleViewQuiz = (res) => {
-    axios.get(`http://${import.meta.env.VITE_HOST}:8080/student/examquestions`, {
-        headers: { Authorization: token }, withCredentials: true,
-        params: { username : res.username, batch : batch, branch : batch, coursecode : ccode, examtype : exam_type}
-      })
-      .then((res) => {
-        //navigate("/view-progress", { state: { res, token } });
-        console.log(res.data);
-      })
-      .catch(() => toast.error('Error', 'Failed to load questions.'));
+  const handleViewDetails = () => {
+    
   };
-
 
   const handleregulation = (selectedBatch, selectedbranch) => {
     if (selectedBatch === -1 || selectedbranch === -1) return;
@@ -50,7 +39,7 @@ function ViewResult({ token }) {
 
   const handleresult = (e) => {
     e.preventDefault();
-    axios.get(`http://${import.meta.env.VITE_HOST}:8080/teacher/getresultslist`, {
+    axios.get(`http://${import.meta.env.VITE_HOST}:8081/emp/view-coding-results`, {
       headers: { Authorization: token }, withCredentials: true,
       params: { batch, branch, coursecode: ccode, exam_type, semester, section: selectedsec }
     })
@@ -94,7 +83,7 @@ function ViewResult({ token }) {
   return (
     <div style={{ padding: '24px 28px', width: '100%', boxSizing: 'border-box' }}>
       <div className="svec-form-panel" style={{ marginBottom: '24px' }}>
-        <div className="svec-form-panel-title">Filter Quiz Results</div>
+        <div className="svec-form-panel-title">Filter Lab Results</div>
         <FormComponent
           batch={batch} setBatch={setBatch}
           branch={branch} setBranch={setBranch}
@@ -119,7 +108,8 @@ function ViewResult({ token }) {
                   <th>SNO</th>
                   <th>Username</th>
                   <th>Marks</th>
-                  <th>View</th>
+                  <th>Code</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -133,8 +123,9 @@ function ViewResult({ token }) {
                       </span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      <button className="svec-btn svec-btn-outline" style={{ padding: '5px 12px', fontSize: '0.78rem', borderRadius: 'var(--radius-sm)' }} onClick={() => handleViewQuiz(res)}>View</button>
+                      <button className="svec-btn svec-btn-outline" style={{ padding: '5px 12px', fontSize: '0.78rem', borderRadius: 'var(--radius-sm)' }} onClick={() => handleViewCode()}>View Code</button>
                     </td>
+                    <td>{res.status}</td>
                   </tr>
                 ))}
               </tbody>
@@ -156,4 +147,4 @@ function ViewResult({ token }) {
   );
 }
 
-export default ViewResult;
+export default ViewLabResults;

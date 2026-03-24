@@ -4,6 +4,7 @@ import ExamSchedule from './ExamSchedule';
 import ConductExam from './ConductExam';
 import ViewQuestions from './ViewQuestions';
 import ViewResults from './ViewResults';
+import ViewLabResults from './ViewLabResults';
 import UpdateExamSchedule from './UpdateExamSchedule';
 import GroqChatDirect from './GrokChatDirect';
 
@@ -18,6 +19,7 @@ function Employee() {
   const updatescheduleRef = useRef(null);
   const viewqueRef = useRef(null);
   const viewresultRef = useRef(null);
+  const viewlabresultRef = useRef(null);
   const logoutRef = useRef(null);
   const [ai, setAi] = useState();
   const tdiv = useRef(null);
@@ -31,7 +33,7 @@ function Employee() {
   }
 
   const setActive = (ref) => {
-    [dashboardRef, conductexamRef, updatescheduleRef, viewqueRef, viewresultRef, logoutRef].forEach(r => {
+    [dashboardRef, conductexamRef, updatescheduleRef, viewqueRef, viewresultRef, viewlabresultRef, logoutRef].forEach(r => {
       if (r.current) r.current.classList.remove('active');
     });
     if (ref.current) ref.current.classList.add('active');
@@ -72,7 +74,11 @@ function Employee() {
           </button>
           <button className="svec-nav-btn" ref={viewresultRef}
             onClick={() => { setActive(viewresultRef); setPage(<ViewResults username={details[0].username} token={token} />); }}>
-            View Results
+            View Quiz Results
+          </button>
+          <button className="svec-nav-btn" ref={viewlabresultRef}
+            onClick={() => { setActive(viewlabresultRef); setPage(<ViewLabResults username={details[0].username} token={token} />); }}>
+            View Lab Results
           </button>
           <button className="svec-nav-btn" ref={logoutRef}
             onClick={() => { setActive(logoutRef); navigate("/"); }}>

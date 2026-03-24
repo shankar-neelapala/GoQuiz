@@ -1,5 +1,7 @@
 package com.example.compilers.service;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -32,7 +34,11 @@ public class FacultyService {
 	@Autowired
 	private ResultRepository resultRepo;
 	
-	public Result getAll(String branch) {
-		return resultRepo.findByBranch(branch);
+//	public Result getAll(String branch) {
+//		return resultRepo.findByBranch(branch);
+//	}
+
+	public List<Result> getAll(String batch, String branch, String code, String type, String semester, String section) {
+		return resultRepo.findByBatchAndBranchAndCoursecodeAndExamTypeAndSemesterAndSection(batch, branch, code, type, semester, section);
 	}
 }

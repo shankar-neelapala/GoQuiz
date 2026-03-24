@@ -449,6 +449,7 @@ function Compiler() {
     );
 
     return (
+      
       <div>
         {}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '12px' }}>
@@ -539,7 +540,11 @@ function Compiler() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', fontFamily: 'var(--font)', background: '#f8fafc', overflow: 'hidden', userSelect: 'none', WebkitUserSelect: 'none' }}>
+    username ==  null ?
+    (<div className="svec-error-state">
+        <div className="svec-error-box">ERROR: YOU ARE NOT AN AUTHORIZED PERSON.</div>
+      </div>) :
+    (<div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', fontFamily: 'var(--font)', background: '#f8fafc', overflow: 'hidden', userSelect: 'none', WebkitUserSelect: 'none' }}>
 
       {}
       {secWarning && (
@@ -958,7 +963,7 @@ function Compiler() {
           </div>
         </div>
       </div>
-    </div>
+    </div>)
   );
 }
 

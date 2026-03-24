@@ -15,6 +15,7 @@ import Admin from './components/Admin'
 import CreateStudent from './components/CreateStudent'
 import CreateFaculty from './components/CreateFaculty'
 import { ToastProvider } from './components/Toast'
+import ViewProgress from './components/ViewProgress'
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
           <Route path="/admin" element={<Admin />} />
           <Route path="/create-student" element={<CreateStudent />} />
           <Route path="/create-faculty" element={<CreateFaculty />} />
+          <Route path="/view-progress" element={<ViewProgress />}/>
         </Routes>
       </Router>
     </ToastProvider>
