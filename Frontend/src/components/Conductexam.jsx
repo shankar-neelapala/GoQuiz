@@ -157,7 +157,6 @@ function ConductExam({username,token}) {
   return (
     <div style={{ padding: '24px 28px', width: '100%', boxSizing: 'border-box' }}>
       <div className="svec-form-panel" style={{ marginBottom: '24px' }}>
-        <div className="svec-section-title" style={{ marginBottom: '20px', fontSize: '0.78rem' }}></div>
         <div className="svec-form-panel-title">SET EXAM</div>
         <FormComponent
           batch={batch} setBatch={setBatch}

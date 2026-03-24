@@ -122,7 +122,7 @@ function ViewLabResults({ token }) {
                         {res.marks}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td>
                       <button className="svec-btn svec-btn-outline" style={{ padding: '5px 12px', fontSize: '0.78rem', borderRadius: 'var(--radius-sm)' }} onClick={() => handleViewCode()}>View Code</button>
                     </td>
                     <td>{res.status}</td>

@@ -26,15 +26,16 @@ function ViewResult({ token }) {
   const navigate = useNavigate();
 
   const handleViewQuiz = (res) => {
+    console.log(res)
     axios.get(`http://${import.meta.env.VITE_HOST}:8080/student/examquestions`, {
         headers: { Authorization: token }, withCredentials: true,
-        params: { username : res.username, batch : batch, branch : batch, coursecode : ccode, examtype : exam_type}
+        params: { username : res.username, batch : res.batch, branch : res.branch, coursecode : res.coursecode, examtype : res.examType}
       })
       .then((res) => {
         //navigate("/view-progress", { state: { res, token } });
-        console.log(res.data);
-      })
-      .catch(() => toast.error('Error', 'Failed to load questions.'));
+         console.log(res.data);
+       })
+       .catch(() => toast.error('Error', 'Failed to load questions.'));
   };
 
 
@@ -132,7 +133,7 @@ function ViewResult({ token }) {
                         {res.marks}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td>
                       <button className="svec-btn svec-btn-outline" style={{ padding: '5px 12px', fontSize: '0.78rem', borderRadius: 'var(--radius-sm)' }} onClick={() => handleViewQuiz(res)}>View</button>
                     </td>
                   </tr>
