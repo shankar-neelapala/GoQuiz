@@ -44,10 +44,15 @@ function Exam() {
   const getAnswersRef = useRef(getAnswers);
   const originalansRef = useRef(originalans);
   const statusRef = useRef(status);
+  // Tracks the answer the student picked for the current question IMMEDIATELY on radio change.
+  // We cannot rely on answers[qno] inside button click handlers because setState is async.
+  const currentSelectionRef = useRef(null);
 
   useEffect(() => { getAnswersRef.current = getAnswers; }, [getAnswers]);
   useEffect(() => { originalansRef.current = originalans; }, [originalans]);
   useEffect(() => { statusRef.current = status; }, [status]);
+  // Sync currentSelectionRef whenever the active question changes
+  useEffect(() => { currentSelectionRef.current = answers[qno] ?? null; }, [qno]);
 
   const doSubmit = useRef((submissionStatus) => {
     if (isSubmitted.current) return;
@@ -165,12 +170,42 @@ function Exam() {
     else if (document.msExitFullscreen) document.msExitFullscreen();
   };
 
-  const updateprogress = (e, id, uname, ubatch, exam_type, ubranch, usemester, ucoursecode, question_no, question, options, answer, selectedopt) => {
-    e.preventDefault();
+  const updateprogress = (selectedopt, questionIndex) => {
+    const q = questions[questionIndex];
+    if (!q) return;
     axios.put(`http://${import.meta.env.VITE_HOST}:8080/student/updateprogress`,
-      { id, username: uname, batch: ubatch, exam_type, branch: ubranch, semester: usemester, coursecode: ucoursecode, question_no, question, options, answer, selectedopt },
+      { id: q.id, username, batch, exam_type: examtype, branch, semester, coursecode,
+        question_no: questionIndex + 1, question: q.question, options: q.options,
+        answer: q.answer, selectedopt },
       { headers: { Authorization: token, 'Content-Type': 'application/json' }, withCredentials: true }
     ).catch(() => {});
+  };
+
+  // Save current question's answer (from ref) and update both state arrays + navigator button
+  const saveAndGo = (e, nextQno) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const sel = currentSelectionRef.current; // always up-to-date, set on every radio change
+
+    // Update the two answer arrays
+    const updated = [...getAnswersRef.current];
+    updated[qno] = sel;
+    setAnswers(prev => { const u = [...prev]; u[qno] = sel; return u; });
+    setGetAnswers(updated);
+    getAnswersRef.current = updated;
+
+    // Colour the navigator button correctly
+    const btn = document.getElementById(`qno${qno}`);
+    if (btn) {
+      btn.style.backgroundColor = sel != null ? 'var(--success)' : 'var(--danger)';
+      btn.style.borderColor     = sel != null ? 'var(--success)' : 'var(--danger)';
+      btn.style.color = '#fff';
+    }
+
+    // Call updateprogress API with the correct selected answer
+    updateprogress(sel, qno);
+
+    // Navigate
+    if (nextQno !== undefined) setQno(nextQno);
   };
 
   const calculatemarks = (e, submissionStatus) => {
@@ -334,7 +369,10 @@ function Exam() {
                         <label key={index} className="svec-option-item" style={{ background: answers[qno] === opt ? 'rgba(0,0,0,0.03)' : '', borderColor: answers[qno] === opt ? 'var(--accent)' : '' }}>
                           <input type='radio' id={`qno${qno}option${index}`} name={`qno${qno}`} value={opt}
                             checked={answers[qno] === opt}
-                            onChange={() => { const u = [...answers]; u[qno] = opt; setAnswers(u); }}
+                            onChange={() => {
+                              currentSelectionRef.current = opt;   // update ref immediately (sync)
+                              const u = [...answers]; u[qno] = opt; setAnswers(u);
+                            }}
                           />
                           <span>{opt}</span>
                         </label>
@@ -348,18 +386,7 @@ function Exam() {
                       </button>
                       <button type="button" className="svec-btn svec-btn-accent"
                         onClick={(e) => {
-                          const u = [...answers];
-                          const sel = document.querySelector(`input[name="qno${qno}"]:checked`)?.value;
-                          u[qno] = sel;
-                          setGetAnswers(u);
-                          if (qno < 19) { setQno(qno + 1); } else { setQno(0); }
-                          const btn = document.getElementById(`qno${qno}`);
-                          if (btn) {
-                            btn.style.backgroundColor = answers[qno] === null ? "var(--danger)" : "var(--success)";
-                            btn.style.borderColor = answers[qno] === null ? "var(--danger)" : "var(--success)";
-                            btn.style.color = "#fff";
-                          }
-                          updateprogress(e, questions[qno].id, username, batch, examtype, branch, semester, coursecode, qno + 1, questions[qno].question, questions[qno].options, questions[qno].answer, answers[qno]);
+                          saveAndGo(e, qno < 19 ? qno + 1 : 0);
                         }}>
                         Save & Next →
                       </button>
@@ -377,7 +404,7 @@ function Exam() {
                     <button key={i} type="button" id={`qno${i}`}
                       className={`svec-qno-btn ${getAnswers[i] != null ? 'answered' : ''} ${i === qno ? 'current' : ''}`}
                       style={{ border: i === qno ? '2px solid var(--accent)' : '' }}
-                      onClick={() => setQno(i)}>
+                      onClick={(e) => { if (i !== qno) saveAndGo(e, i); }}>
                       {i + 1}
                     </button>
                   ))}

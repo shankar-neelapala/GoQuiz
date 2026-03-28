@@ -5,7 +5,6 @@ import FormComponent from './Form';
 import * as XLSX from 'xlsx-js-style';
 import { saveAs } from 'file-saver';
 import { useToast } from './Toast';
-import { useNavigate } from 'react-router-dom';
 
 function ViewResult({ token }) {
   const toast = useToast();
@@ -23,21 +22,6 @@ function ViewResult({ token }) {
   const [displayres, setDisplayres] = useState(true);
   const [display, setDisplay] = useState(0);
   const [subjectText, setSubjectText] = useState();
-  const navigate = useNavigate();
-
-  const handleViewQuiz = (res) => {
-    console.log(res)
-    axios.get(`http://${import.meta.env.VITE_HOST}:8080/student/examquestions`, {
-        headers: { Authorization: token }, withCredentials: true,
-        params: { username : res.username, batch : res.batch, branch : res.branch, coursecode : res.coursecode, examtype : res.examType}
-      })
-      .then((res) => {
-        //navigate("/view-progress", { state: { res, token } });
-         console.log(res.data);
-       })
-       .catch(() => toast.error('Error', 'Failed to load questions.'));
-  };
-
 
   const handleregulation = (selectedBatch, selectedbranch) => {
     if (selectedBatch === -1 || selectedbranch === -1) return;
@@ -93,9 +77,9 @@ function ViewResult({ token }) {
   };
 
   return (
-    <div style={{ padding: '24px 28px', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: '24px 28px' }}>
       <div className="svec-form-panel" style={{ marginBottom: '24px' }}>
-        <div className="svec-form-panel-title">Filter Quiz Results</div>
+        <div className="svec-form-panel-title">Filter Results</div>
         <FormComponent
           batch={batch} setBatch={setBatch}
           branch={branch} setBranch={setBranch}
@@ -120,22 +104,18 @@ function ViewResult({ token }) {
                   <th>SNO</th>
                   <th>Username</th>
                   <th>Marks</th>
-                  {/* <th>View</th> */}
                 </tr>
               </thead>
               <tbody>
                 {result.map((res, index) => (
                   <tr key={res.username + index}>
-                    <td style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{index + 1}</td>
+                    <td style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{index + 1}</td>
                     <td style={{ fontWeight: 500 }}>{res.username}</td>
                     <td>
                       <span style={{ background: res.marks > 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: res.marks > 0 ? 'var(--success)' : 'var(--danger)', padding: '2px 10px', borderRadius: '99px', fontWeight: 700, fontSize: '0.85rem' }}>
                         {res.marks}
                       </span>
                     </td>
-                    {/* <td>
-                      <button className="svec-btn svec-btn-outline" style={{ padding: '5px 12px', fontSize: '0.78rem', borderRadius: 'var(--radius-sm)' }} onClick={() => handleViewQuiz(res)}>View</button>
-                    </td> */}
                   </tr>
                 ))}
               </tbody>

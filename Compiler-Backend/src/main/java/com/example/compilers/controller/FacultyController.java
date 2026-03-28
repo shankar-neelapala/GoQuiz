@@ -42,5 +42,6 @@ public class FacultyController {
 	public List<Result> getAll(@RequestParam("batch") String batch,@RequestParam("branch") String branch,@RequestParam("coursecode") String code,@RequestParam("exam_type") String type,@RequestParam("semester") String semester,@RequestParam("section") String section) {
 		return facultyService.getAll(batch, branch, code, type, semester, section);
 	}
+	
 
 }

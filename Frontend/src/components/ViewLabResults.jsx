@@ -5,9 +5,11 @@ import FormComponent from './Form';
 import * as XLSX from 'xlsx-js-style';
 import { saveAs } from 'file-saver';
 import { useToast } from './Toast';
+import { useNavigate } from 'react-router-dom';
 
 function ViewLabResults({ token }) {
   const toast = useToast();
+  const navigate = useNavigate();
   const [regulation, setRegulation] = useState();
   const [batch, setBatch] = useState(-1);
   const [branch, setBranch] = useState(-1);
@@ -23,8 +25,19 @@ function ViewLabResults({ token }) {
   const [display, setDisplay] = useState(0);
   const [subjectText, setSubjectText] = useState();
 
-  const handleViewDetails = () => {
-    
+  // Navigate to view code page with student's source code pre-loaded
+  const handleViewCode = (res) => {
+    const key = `view-code-${res.username}-${Date.now()}`;
+    sessionStorage.setItem(key, JSON.stringify({
+      sourceCode: res.source_code || '',
+      language: res.language || 'c',
+      username: res.username,
+      questionTitle: res.question_title,
+      marks: res.marks,
+      status: res.status,
+      token
+    }));
+    window.open(`/view-code?dataKey=${encodeURIComponent(key)}`, '_blank');
   };
 
   const handleregulation = (selectedBatch, selectedbranch) => {
@@ -107,9 +120,10 @@ function ViewLabResults({ token }) {
                 <tr>
                   <th>SNO</th>
                   <th>Username</th>
+                  <th>Question</th>
                   <th>Marks</th>
-                  {/* <th>Code</th> */}
                   <th>Status</th>
+                  <th>View Code</th>
                 </tr>
               </thead>
               <tbody>
@@ -117,15 +131,34 @@ function ViewLabResults({ token }) {
                   <tr key={res.username + index}>
                     <td style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{index + 1}</td>
                     <td style={{ fontWeight: 500 }}>{res.username}</td>
+                    <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {res.question_title || '—'}
+                    </td>
                     <td>
                       <span style={{ background: res.marks > 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: res.marks > 0 ? 'var(--success)' : 'var(--danger)', padding: '2px 10px', borderRadius: '99px', fontWeight: 700, fontSize: '0.85rem' }}>
                         {res.marks}
                       </span>
                     </td>
-                    {/* <td>
-                      <button className="svec-btn svec-btn-outline" style={{ padding: '5px 12px', fontSize: '0.78rem', borderRadius: 'var(--radius-sm)' }} onClick={() => handleViewCode()}>View Code</button>
-                    </td> */}
-                    <td>{res.status}</td>
+                    <td>
+                      {res.status ? (
+                        <span style={{
+                          background: res.status === 'ACCEPTED' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)',
+                          color: res.status === 'ACCEPTED' ? 'var(--success)' : '#d97706',
+                          padding: '2px 10px', borderRadius: '99px', fontWeight: 600, fontSize: '0.78rem'
+                        }}>
+                          {res.status}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td>
+                      <button
+                        className="svec-btn svec-btn-outline"
+                        style={{ padding: '5px 12px', fontSize: '0.78rem', borderRadius: 'var(--radius-sm)' }}
+                        onClick={() => handleViewCode(res)}
+                      >
+                        View Code
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

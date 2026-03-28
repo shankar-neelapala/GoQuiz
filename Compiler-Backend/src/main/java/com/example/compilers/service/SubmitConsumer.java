@@ -101,7 +101,7 @@ public class SubmitConsumer {
                 submission.setStatus("DONE");
                 submissionRepo.save(submission);
 
-                // Save exam result - student data comes from the submission itself
+                // Save exam result — student data + language comes from the submission
                 Result result = new Result();
                 result.setBatch(submission.getBatch());
                 result.setBranch(submission.getBranch());
@@ -112,6 +112,7 @@ public class SubmitConsumer {
                 result.setUsername(submission.getUsername());
                 result.setQuestion_title(submission.getQuestionTitle());
                 result.setSource_code(submission.getSourceCode());
+                result.setLanguage(submission.getLanguage());   // NEW: persist language
                 result.setMarks(marks);
                 result.setStatus(correct == total ? "ACCEPTED" : "PARTIAL");
 

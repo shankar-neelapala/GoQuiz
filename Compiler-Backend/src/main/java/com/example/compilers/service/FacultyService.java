@@ -41,4 +41,5 @@ public class FacultyService {
 	public List<Result> getAll(String batch, String branch, String code, String type, String semester, String section) {
 		return resultRepo.findByBatchAndBranchAndCoursecodeAndExamTypeAndSemesterAndSection(batch, branch, code, type, semester, section);
 	}
+
 }

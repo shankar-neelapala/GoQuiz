@@ -22,7 +22,7 @@ public class StudentService {
 	public List<CodingQuestion> getQuestons(String year, String branch, String code, String type) {
 		List<CodingQuestion> questions = qr.findQuestions(year, branch, code, type);
 		Collections.shuffle(questions);
-		return questions.subList(0, 2);		
+		return questions.subList(0, 1);		
 	}
 
 
