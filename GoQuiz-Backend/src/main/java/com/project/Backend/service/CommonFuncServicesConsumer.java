@@ -105,6 +105,10 @@ public class CommonFuncServicesConsumer {
 	        r.setSection((String) data.get("section"));
 	        List<String> originalans = (List<String>) data.get("originalans");
 	        List<String> attemptedans = (List<String>) data.get("attemptedans");
+	        List<String> questions = (List<String>) data.get("questions");
+	        r.setQuestions(questions);
+	        r.setAttemptedans(attemptedans);
+	        r.setOriginalans(originalans);
 	        r.setStatus((String) data.get("status"));
 	        double marks = 0.0;
 	        for (int i = 0; i < Math.min(originalans.size(), attemptedans.size()); i++) {

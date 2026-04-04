@@ -18,6 +18,7 @@ public class Result {
 	String section;
 	@Indexed(unique = true)
 	String username;
+	List<String> questions;
 	List<String> originalans;
 	List<String> attemptedans;
 	String status = null;
@@ -93,6 +94,15 @@ public class Result {
 	}
 	public void setStatus(String status) {
 		this.status = status;
+	}
+	
+	
+	
+	public List<String> getQuestions() {
+		return questions;
+	}
+	public void setQuestions(List<String> questions) {
+		this.questions = questions;
 	}
 	@Override
 	public String toString() {

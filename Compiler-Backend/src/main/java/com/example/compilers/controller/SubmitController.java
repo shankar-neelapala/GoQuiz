@@ -47,6 +47,8 @@ public class SubmitController {
         s.setExamType(req.examType());
         s.setSection(req.section());
         s.setQuestionTitle(req.question_title());
+        s.setSourceCode(req.source_code());
+        s.setLanguage(req.language());
         s = repo.save(s);
         kafkaTemplate.send(TOPIC, s.getId());
         return ResponseEntity.ok().body(java.util.Map.of("submissionId", s.getId()));

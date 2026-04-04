@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import axios from 'axios';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -37,6 +37,10 @@ function ViewCode() {
   const [running, setRunning] = useState(false);
   const editorRef = useRef(null);
   const pollRef = useRef(null);
+
+  useEffect(() => {
+    document.title = 'View Code';
+  }, []);
 
   const handleEditorMount = useCallback((editor) => {
     editorRef.current = editor;

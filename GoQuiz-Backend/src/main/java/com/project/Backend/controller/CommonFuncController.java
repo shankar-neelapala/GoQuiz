@@ -99,6 +99,7 @@ public class CommonFuncController {
 	        kafkaData.put("section", r.getSection());
 	        kafkaData.put("semester", r.getSemester());
 	        kafkaData.put("username", r.getUsername());
+	        kafkaData.put("questions", r.getQuestions());
 	        kafkaData.put("originalans", r.getOriginalans());
 	        kafkaData.put("attemptedans", r.getAttemptedans());
 	        kafkaData.put("status", r.getStatus());

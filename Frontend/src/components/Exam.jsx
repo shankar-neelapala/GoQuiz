@@ -126,6 +126,7 @@ function Exam() {
   }, []);
 
   const enteredFullscreenRef = useRef(false);
+  const isSubmittingRef = useRef(false);  // prevents violation popup when submit exits fullscreen
   useEffect(() => {
     const onFSChange = () => {
       if (document.fullscreenElement) {
@@ -133,6 +134,7 @@ function Exam() {
         return;
       }
       if (!enteredFullscreenRef.current) return;
+      if (isSubmittingRef.current) return;  // ignore fullscreen exit triggered by submit
       enteredFullscreenRef.current = false;
 
       vioCountRef.current += 1;
@@ -164,6 +166,7 @@ function Exam() {
   }, []);
 
   const exitFullscreen = () => {
+    isSubmittingRef.current = true;  // flag so onFSChange ignores this exit
     if (document.exitFullscreen) document.exitFullscreen();
     else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
     else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
