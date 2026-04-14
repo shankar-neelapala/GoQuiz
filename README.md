@@ -90,7 +90,6 @@ GoQuiz is a full-stack, role-based online examination platform supporting both *
 | Code Execution | Judge0 (self-hosted via Docker), supports C, C++, Java, Python |
 | Message Broker | Apache Kafka 7.2.1 + Zookeeper 3.8 (docker-compose) |
 | Database | MongoDB Atlas |
-| AI Assistant | Groq API (ChatBoard feature) |
 
 ---
 
@@ -131,7 +130,6 @@ GoQuiz-main/
 │   │       ├── ViewFaculties.jsx
 │   │       ├── Form.jsx                # Shared filter form
 │   │       ├── Toast.jsx               # Toast notification system
-│   │       └── GrokChatDirect.jsx      # AI chatboard (Groq)
 │   ├── .env
 │   ├── package.json
 │   └── vite.config.js
@@ -211,6 +209,8 @@ Make sure the following are installed before running the project:
 | Maven | 3.8+ | Build GoQuiz & Compiler backends |
 | Docker & Docker Compose | Latest | Kafka, Zookeeper, Judge0 |
 | MongoDB Atlas account | — | Database (cloud-hosted) |
+
+Download and extract the Judge0 from https://github.com/judge0/judge0.git.
 
 ---
 
